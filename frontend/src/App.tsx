@@ -326,6 +326,9 @@ function App() {
               <Control label="Blur" value={settings.blur.toFixed(2)}>
                 <Slider min={0} max={2} step={0.05} value={settings.blur} onChange={(value) => setSettings({ ...settings, blur: value })} />
               </Control>
+              <Control label="Color retention" value={`${settings.color_retention}%`} note={settings.color_retention === 0 ? 'monochrome' : settings.color_retention < 35 ? 'nearly lost' : undefined}>
+                <Slider min={0} max={100} value={settings.color_retention} onChange={(value) => setSettings({ ...settings, color_retention: value })} />
+              </Control>
 
               <div className="divider" />
               <div className="mini-title"><AudioLines size={15} /> Audio damage</div>
