@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
-import type { Settings, VideoInfo } from './types'
+import type { CustomPreset, Settings, VideoInfo } from './types'
 
 const videoFilters = [{
   name: 'Video files',
@@ -35,6 +35,18 @@ export function startProcessing(inputPath: string, outputPath: string, settings:
 
 export function cancelProcessing(): Promise<void> {
   return invoke('cancel_processing')
+}
+
+export function loadCustomPresets(): Promise<CustomPreset[]> {
+  return invoke<CustomPreset[]>('load_custom_presets')
+}
+
+export function saveCustomPreset(preset: CustomPreset): Promise<CustomPreset[]> {
+  return invoke<CustomPreset[]>('save_custom_preset', { preset })
+}
+
+export function deleteCustomPreset(id: string): Promise<CustomPreset[]> {
+  return invoke<CustomPreset[]>('delete_custom_preset', { id })
 }
 
 export function defaultOutputPath(inputPath: string) {
