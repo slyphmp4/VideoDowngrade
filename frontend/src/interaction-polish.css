@@ -1,0 +1,277 @@
+/* v0.2.4 — dark glass underlays, motion polish, and selection protection */
+
+html,
+body,
+#root,
+.app-shell {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+img,
+video,
+svg,
+a {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+.dropzone,
+.presets-panel,
+.control-panel {
+  background:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+    rgba(3, 3, 3, .76);
+  background-size: 24px 24px, 24px 24px, auto;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.025),
+    0 12px 36px rgba(0,0,0,.12);
+}
+
+.dropzone:not(.has-file):hover {
+  background:
+    linear-gradient(rgba(255,255,255,.024) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.024) 1px, transparent 1px),
+    rgba(9, 9, 9, .84);
+  background-size: 24px 24px, 24px 24px, auto;
+}
+
+.preset-card,
+.custom-select-trigger,
+.file-meta,
+.output-chip,
+.error-box,
+.toast-card {
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.preset-card {
+  background:
+    linear-gradient(rgba(255,255,255,.016) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.016) 1px, transparent 1px),
+    rgba(7, 7, 7, .78);
+  background-size: 24px 24px, 24px 24px, auto;
+}
+
+.preset-card:hover {
+  background:
+    linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px),
+    rgba(18, 18, 18, .9);
+  background-size: 24px 24px, 24px 24px, auto;
+}
+
+.preset-card.selected {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.custom-select-trigger {
+  background: rgba(7,7,7,.82);
+}
+
+.custom-select-trigger:hover {
+  background: rgba(18,18,18,.92);
+}
+
+.custom-select-menu {
+  background: rgba(5,5,5,.95);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  transform-origin: top center;
+  animation: vd-popup-in .2s cubic-bezier(.16,1,.3,1) both;
+}
+
+.file-meta,
+.output-chip,
+.error-box,
+.toast-card {
+  background: rgba(5,5,5,.8);
+}
+
+/* Media replacement should feel like a state transition, not a DOM swap. */
+.file-card {
+  animation: vd-preview-shell-in .46s cubic-bezier(.16,1,.3,1) both;
+  transform-origin: center center;
+}
+
+.preview-surface {
+  overflow: hidden;
+}
+
+.preview-surface video {
+  opacity: 0;
+  animation: vd-media-in .58s cubic-bezier(.16,1,.3,1) .05s forwards;
+  will-change: opacity, transform, filter;
+}
+
+.preview-grid {
+  animation:
+    grid-shift 14s linear infinite,
+    vd-grid-fade-in .7s cubic-bezier(.16,1,.3,1) both;
+}
+
+.file-meta {
+  animation: vd-meta-in .42s cubic-bezier(.16,1,.3,1) .1s both;
+}
+
+.toast-card {
+  animation: vd-toast-in .3s cubic-bezier(.16,1,.3,1) both;
+  transform-origin: top right;
+}
+
+.progress-card,
+.error-box,
+.output-chip {
+  animation: vd-inline-in .28s cubic-bezier(.16,1,.3,1) both;
+}
+
+.preset-card.selected {
+  animation: vd-selected-in .22s cubic-bezier(.16,1,.3,1) both;
+}
+
+.process-button,
+.ghost-button,
+.nav-icon,
+.icon-text,
+.custom-select-trigger,
+.preset-card,
+.clear-button,
+.app-slider-thumb {
+  will-change: transform;
+}
+
+.process-button:active:not(:disabled),
+.ghost-button:active,
+.nav-icon:active:not(:disabled),
+.icon-text:active,
+.custom-select-trigger:active,
+.preset-card:active,
+.clear-button:active {
+  transform: translateY(0) scale(.988);
+  transition-duration: .08s;
+}
+
+.app-slider-thumb {
+  transition:
+    left .2s cubic-bezier(.16,1,.3,1),
+    transform .16s cubic-bezier(.16,1,.3,1),
+    background .16s ease;
+}
+
+.progress-track div {
+  transition: width .34s cubic-bezier(.16,1,.3,1);
+}
+
+.dropzone.dragging {
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+
+@keyframes vd-preview-shell-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(.993);
+    filter: blur(5px);
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes vd-media-in {
+  0% {
+    opacity: 0;
+    transform: scale(1.012);
+    filter: blur(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes vd-grid-fade-in {
+  from { opacity: 0; }
+  to { opacity: .13; }
+}
+
+@keyframes vd-meta-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vd-popup-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scaleY(.96);
+    filter: blur(3px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes vd-toast-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(.985);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes vd-inline-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes vd-selected-in {
+  0% {
+    transform: scale(.992);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
