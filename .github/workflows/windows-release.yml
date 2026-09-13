@@ -3,6 +3,8 @@ name: Windows Release
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -53,13 +55,16 @@ jobs:
           tagName: v__VERSION__
           releaseName: 'VideoDowngrade v__VERSION__'
           releaseBody: |
-            Native Windows desktop build of VideoDowngrade.
+            VideoDowngrade v0.2.7 — persistent custom presets.
 
-            - React + Tauri 2 interface
-            - native Rust processing core
+            - save the current Signal damage settings as a named preset
+            - custom presets persist between application launches in presets.json
+            - select, rename and delete custom presets from Character
+            - animated in-app save / rename / delete dialogs
+            - built-in presets remain protected and unchanged
+            - stores FPS, CRF, scale, blur, color retention, audio and output settings
+            - React + Tauri 2 + Rust
             - bundled FFmpeg / FFprobe
-            - local-only file processing
-            - NSIS Windows installer
           releaseDraft: false
           prerelease: true
           args: --bundles nsis
