@@ -20,6 +20,20 @@ export type CustomPreset = {
   settings: Settings
 }
 
+export type HistoryEntry = {
+  id: string
+  created_at: number
+  input_path: string
+  output_path: string
+  settings: Settings
+}
+
+export type AppPreferences = {
+  auto_preview_processed: boolean
+  motion_enabled: boolean
+  default_preset: PresetKey
+}
+
 export type VideoInfo = {
   width: number
   height: number
@@ -29,7 +43,6 @@ export type VideoInfo = {
   filename: string
 }
 
-// Kept temporarily so the legacy web API module still type-checks during the desktop migration.
 export type Job = {
   id: string
   filename: string
