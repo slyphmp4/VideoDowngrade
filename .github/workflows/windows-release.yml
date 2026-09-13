@@ -3,8 +3,6 @@ name: Windows Release
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
 
@@ -55,17 +53,13 @@ jobs:
           tagName: v__VERSION__
           releaseName: 'VideoDowngrade v__VERSION__'
           releaseBody: |
-            VideoDowngrade v0.2.3 — contrast hierarchy refinement.
+            Native Windows desktop build of VideoDowngrade.
 
-            - darker working panels against a graphite workspace
-            - clearer separation between app background and interface surfaces
-            - stronger monochrome borders and surface hierarchy
-            - improved readability of interactive controls
-            - preserved 24px Swiss grid system
-            - no colored accents
-            - release build opens without a console window
-            - React + Tauri 2 + Rust
+            - React + Tauri 2 interface
+            - native Rust processing core
             - bundled FFmpeg / FFprobe
+            - local-only file processing
+            - NSIS Windows installer
           releaseDraft: false
           prerelease: true
           args: --bundles nsis
