@@ -1,0 +1,101 @@
+:root {
+  --bg: #161616;
+  --panel: #080808;
+  --panel-2: #0d0d0d;
+  --panel-3: #141414;
+  --line: rgba(255,255,255,.16);
+  --line-strong: rgba(255,255,255,.34);
+  --grid: rgba(255,255,255,.032);
+}
+
+html,
+body,
+#root,
+.app-shell {
+  background: var(--bg);
+}
+
+.sidebar {
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    #0f0f0f;
+  background-size: 24px 24px, 24px 24px, auto;
+}
+
+.workspace {
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    var(--bg);
+  background-size: 24px 24px, 24px 24px, auto;
+}
+
+.dropzone,
+.presets-panel,
+.control-panel {
+  border-color: var(--line-strong);
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    #070707;
+  background-size: 24px 24px, 24px 24px, auto;
+}
+
+.dropzone:not(.has-file):hover {
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    #121212;
+  background-size: 24px 24px, 24px 24px, auto;
+}
+
+.file-meta,
+.toast-card,
+.output-chip,
+.error-box {
+  background: #0b0b0b;
+}
+
+.file-icon {
+  background: #0d0d0d;
+}
+
+.preset-card {
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    #0b0b0b;
+  background-size: 24px 24px, 24px 24px, auto;
+}
+
+.preset-card:hover {
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    #171717;
+  background-size: 24px 24px, 24px 24px, auto;
+}
+
+.custom-select-trigger {
+  background: #0b0b0b;
+}
+
+.custom-select-trigger:hover {
+  background: #151515;
+}
+
+.custom-select-menu {
+  background: #080808;
+}
+
+.process-button:disabled {
+  background: #111111;
+  border-color: rgba(255,255,255,.15);
+  color: #666662;
+}
+
+.process-button.cancel:hover:not(:disabled),
+.process-button.done:hover:not(:disabled) {
+  border-color: rgba(255,255,255,.48);
+}
