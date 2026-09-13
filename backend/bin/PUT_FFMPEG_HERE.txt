@@ -1,0 +1,1 @@
+Windows: place ffmpeg.exe and ffprobe.exe in this folder if they are not in PATH.
