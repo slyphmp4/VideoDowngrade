@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     io::ErrorKind,
     path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
     sync::{
         atomic::{AtomicBool, Ordering},
         Mutex,
@@ -39,6 +40,32 @@ struct CustomPreset {
     id: String,
     name: String,
     settings: Settings,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct HistoryEntry {
+    id: String,
+    created_at: u64,
+    input_path: String,
+    output_path: String,
+    settings: Settings,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AppPreferences {
+    auto_preview_processed: bool,
+    motion_enabled: bool,
+    default_preset: String,
+}
+
+impl Default for AppPreferences {
+    fn default() -> Self {
+        Self {
+            auto_preview_processed: true,
+            motion_enabled: true,
+            default_preset: "messenger".into(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -98,31 +125,15 @@ fn load_custom_presets(app: AppHandle) -> Result<Vec<CustomPreset>, String> {
 fn save_custom_preset(app: AppHandle, mut preset: CustomPreset) -> Result<Vec<CustomPreset>, String> {
     preset.id = preset.id.trim().to_string();
     preset.name = preset.name.trim().to_string();
-
-    if preset.id.is_empty() || preset.id.len() > 96 {
-        return Err("Invalid preset id".into());
-    }
-    if preset.name.is_empty() {
-        return Err("Preset name cannot be empty".into());
-    }
-    if preset.name.chars().count() > 48 {
-        return Err("Preset name can contain at most 48 characters".into());
-    }
+    if preset.id.is_empty() || preset.id.len() > 96 { return Err("Invalid preset id".into()); }
+    if preset.name.is_empty() { return Err("Preset name cannot be empty".into()); }
+    if preset.name.chars().count() > 48 { return Err("Preset name can contain at most 48 characters".into()); }
     validate_settings(&preset.settings)?;
-
     let mut presets = read_custom_presets(&app)?;
-    if presets.iter().any(|item| {
-        item.id != preset.id && item.name.eq_ignore_ascii_case(&preset.name)
-    }) {
+    if presets.iter().any(|item| item.id != preset.id && item.name.eq_ignore_ascii_case(&preset.name)) {
         return Err("A preset with this name already exists".into());
     }
-
-    if let Some(index) = presets.iter().position(|item| item.id == preset.id) {
-        presets[index] = preset;
-    } else {
-        presets.push(preset);
-    }
-
+    if let Some(index) = presets.iter().position(|item| item.id == preset.id) { presets[index] = preset; } else { presets.push(preset); }
     write_custom_presets(&app, &presets)?;
     Ok(presets)
 }
@@ -133,6 +144,29 @@ fn delete_custom_preset(app: AppHandle, id: String) -> Result<Vec<CustomPreset>,
     presets.retain(|item| item.id != id);
     write_custom_presets(&app, &presets)?;
     Ok(presets)
+}
+
+#[tauri::command]
+fn load_history(app: AppHandle) -> Result<Vec<HistoryEntry>, String> {
+    read_history(&app)
+}
+
+#[tauri::command]
+fn clear_history(app: AppHandle) -> Result<Vec<HistoryEntry>, String> {
+    write_json_file(&app, "history.json", &Vec::<HistoryEntry>::new())?;
+    Ok(Vec::new())
+}
+
+#[tauri::command]
+fn load_preferences(app: AppHandle) -> Result<AppPreferences, String> {
+    read_preferences(&app)
+}
+
+#[tauri::command]
+fn save_preferences(app: AppHandle, preferences: AppPreferences) -> Result<AppPreferences, String> {
+    validate_preferences(&preferences)?;
+    write_json_file(&app, "preferences.json", &preferences)?;
+    Ok(preferences)
 }
 
 #[tauri::command]
@@ -189,6 +223,8 @@ async fn start_processing(
     let app_handle = app.clone();
     let duration_us = (info.duration * 1_000_000.0).max(1.0);
     let output_for_task = output.clone();
+    let input_for_history = input.clone();
+    let settings_for_history = settings.clone();
 
     tauri::async_runtime::spawn(async move {
         let mut stderr_tail = String::new();
@@ -233,6 +269,7 @@ async fn start_processing(
                         let _ = std::fs::remove_file(&output_for_task);
                         let _ = app_handle.emit("processing-cancelled", ());
                     } else if payload.code == Some(0) {
+                        let _ = append_history(&app_handle, &input_for_history, &output_for_task, &settings_for_history);
                         let _ = app_handle.emit("processing-progress", ProgressPayload { progress: 100.0 });
                         let _ = app_handle.emit(
                             "processing-complete",
@@ -278,31 +315,68 @@ fn clear_child(app: &AppHandle) {
     }
 }
 
-fn custom_presets_path(app: &AppHandle) -> Result<PathBuf, String> {
+fn config_file_path(app: &AppHandle, name: &str) -> Result<PathBuf, String> {
     let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir.join("presets.json"))
+    Ok(dir.join(name))
 }
 
-fn read_custom_presets(app: &AppHandle) -> Result<Vec<CustomPreset>, String> {
-    let path = custom_presets_path(app)?;
+fn read_json_file<T>(app: &AppHandle, name: &str) -> Result<Option<T>, String>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    let path = config_file_path(app, name)?;
     match std::fs::read_to_string(&path) {
-        Ok(content) => {
-            if content.trim().is_empty() {
-                return Ok(Vec::new());
-            }
-            serde_json::from_str(&content)
-                .map_err(|e| format!("Could not read saved presets: {e}"))
-        }
-        Err(error) if error.kind() == ErrorKind::NotFound => Ok(Vec::new()),
-        Err(error) => Err(format!("Could not open saved presets: {error}")),
+        Ok(content) if content.trim().is_empty() => Ok(None),
+        Ok(content) => serde_json::from_str(&content).map(Some).map_err(|e| format!("Could not read {name}: {e}")),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(format!("Could not open {name}: {error}")),
     }
 }
 
+fn write_json_file<T: Serialize>(app: &AppHandle, name: &str, value: &T) -> Result<(), String> {
+    let path = config_file_path(app, name)?;
+    let json = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
+    std::fs::write(path, json).map_err(|e| format!("Could not save {name}: {e}"))
+}
+
+fn read_custom_presets(app: &AppHandle) -> Result<Vec<CustomPreset>, String> {
+    Ok(read_json_file(app, "presets.json")?.unwrap_or_default())
+}
+
 fn write_custom_presets(app: &AppHandle, presets: &[CustomPreset]) -> Result<(), String> {
-    let path = custom_presets_path(app)?;
-    let json = serde_json::to_string_pretty(presets).map_err(|e| e.to_string())?;
-    std::fs::write(path, json).map_err(|e| format!("Could not save presets: {e}"))
+    write_json_file(app, "presets.json", &presets)
+}
+
+fn read_history(app: &AppHandle) -> Result<Vec<HistoryEntry>, String> {
+    Ok(read_json_file(app, "history.json")?.unwrap_or_default())
+}
+
+fn append_history(app: &AppHandle, input: &Path, output: &Path, settings: &Settings) -> Result<(), String> {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).map_err(|e| e.to_string())?.as_millis() as u64;
+    let mut history = read_history(app)?;
+    history.insert(0, HistoryEntry {
+        id: format!("export-{now}"),
+        created_at: now,
+        input_path: input.to_string_lossy().into_owned(),
+        output_path: output.to_string_lossy().into_owned(),
+        settings: settings.clone(),
+    });
+    history.truncate(50);
+    write_json_file(app, "history.json", &history)
+}
+
+fn read_preferences(app: &AppHandle) -> Result<AppPreferences, String> {
+    let prefs = read_json_file(app, "preferences.json")?.unwrap_or_default();
+    validate_preferences(&prefs)?;
+    Ok(prefs)
+}
+
+fn validate_preferences(preferences: &AppPreferences) -> Result<(), String> {
+    if !["slight", "messenger", "bad_phone", "destroyed"].contains(&preferences.default_preset.as_str()) {
+        return Err("Unsupported default preset".into());
+    }
+    Ok(())
 }
 
 async fn probe(app: &AppHandle, path: &Path) -> Result<VideoInfo, String> {
@@ -495,6 +569,10 @@ pub fn run() {
             load_custom_presets,
             save_custom_preset,
             delete_custom_preset,
+            load_history,
+            clear_history,
+            load_preferences,
+            save_preferences,
             start_processing,
             cancel_processing
         ])
