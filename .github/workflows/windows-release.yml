@@ -3,8 +3,8 @@ name: Windows Release
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -53,16 +53,13 @@ jobs:
           tagName: v__VERSION__
           releaseName: 'VideoDowngrade v__VERSION__'
           releaseBody: |
-            VideoDowngrade v0.2.6 — color degradation.
+            Native Windows desktop build of VideoDowngrade.
 
-            - new Color retention control from 100% color to full monochrome
-            - color loss is applied to the real exported video through FFmpeg
-            - Messenger preset gets subtle fading
-            - Bad phone preset is noticeably desaturated
-            - Destroyed preset now reaches black and white
-            - preserves Original / Processed comparison preview
-            - React + Tauri 2 + Rust
+            - React + Tauri 2 interface
+            - native Rust processing core
             - bundled FFmpeg / FFprobe
+            - local-only file processing
+            - NSIS Windows installer
           releaseDraft: false
           prerelease: true
           args: --bundles nsis
