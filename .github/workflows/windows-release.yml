@@ -3,6 +3,8 @@ name: Windows Release
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -53,13 +55,11 @@ jobs:
           tagName: v__VERSION__
           releaseName: 'VideoDowngrade v__VERSION__'
           releaseBody: |
-            VideoDowngrade desktop UI refresh.
+            VideoDowngrade v0.1.2 UI polish.
 
-            - custom in-app sliders
-            - custom dropdown controls
-            - native-styled scrollbars
-            - save-complete toast notification
-            - cleaner top bar
+            - improved Process video / Process again spacing
+            - Stop processing icon and label aligned to the left
+            - release build no longer opens a Windows console window
             - React + Tauri 2 + Rust
             - bundled FFmpeg / FFprobe
           releaseDraft: false
