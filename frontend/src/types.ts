@@ -6,6 +6,7 @@ export type Settings = {
   crf: number
   downscale: number
   blur: number
+  color_retention: number
   audio_bitrate: number
   sample_rate: number
   channels: number
