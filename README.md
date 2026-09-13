@@ -1,71 +1,73 @@
-# Degrader — React + Rust web app
+# VideoDowngrade
 
-A local/self-hosted web app for intentionally degrading video and audio quality.
+VideoDowngrade is a native Windows desktop app for intentionally degrading video and audio quality in a controlled way.
 
-## Stack
+## Desktop stack
 
-- React 19 + TypeScript
-- Vite 8
-- Rust + Axum + Tokio
-- Native FFmpeg / FFprobe
+- React + TypeScript + Vite for the interface
+- Tauri 2 for the native desktop shell
+- Rust for media probing, processing state, progress and cancellation
+- Native FFmpeg / FFprobe bundled with release installers
 
-The browser is only the UI. Files are uploaded to the Rust process, and FFmpeg performs the actual transcode. This avoids the large RAM and performance cost of browser-only FFmpeg/WASM for long videos.
+The application does **not** upload the selected video to a web server. React talks directly to the Rust core through Tauri IPC and Rust launches the bundled FFmpeg sidecar against the file on disk.
 
-## Requirements
+## Features
+
+- native Windows window — no browser tab or localhost server
+- drag and drop video files
+- native Open / Save dialogs
+- local video preview
+- presets: Soft, Messenger, Bad phone, Destroyed
+- 20–25 FPS control
+- CRF compression control
+- downscale → upscale degradation
+- blur
+- output resolution
+- audio bitrate, sample rate and mono/stereo damage
+- high-pass / low-pass processing from presets
+- live FFmpeg progress
+- processing cancellation
+- output directly to a user-selected `.mp4`
+
+## Download
+
+Ready-to-install Windows builds are published under **GitHub Releases** as an NSIS `-setup.exe` installer.
+
+## Local development on Windows
+
+Requirements for developers only:
 
 - Node.js 22+
-- Rust toolchain (`rustup` / `cargo`)
-- FFmpeg and FFprobe either in PATH or in `backend/bin/` (`ffmpeg.exe` + `ffprobe.exe` on Windows)
+- Rust stable / Cargo
+- Microsoft C++ Build Tools required by Tauri
 
-## Development
+Prepare FFmpeg sidecars:
 
-### 1. Backend
-
-```bash
-cd backend
-cargo run
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\fetch-ffmpeg.ps1
 ```
 
-Backend: `http://127.0.0.1:8787`
+Install dependencies:
 
-### 2. Frontend
-
-```bash
-cd frontend
+```powershell
 npm install
+npm --prefix frontend install
+```
+
+Run the desktop app in development mode:
+
+```powershell
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173`.
+Build an installer locally:
 
-Vite proxies `/api` to the Rust backend.
+```powershell
+npm run build -- --bundles nsis
+```
 
-## Current V0.1 features
+The installer will be created under `src-tauri/target/release/bundle/nsis/`.
 
-- drag & drop video
-- local preview
-- dark custom UI
-- 4 degradation presets
-- manual FPS / CRF / scale / blur controls
-- audio bitrate / sample rate / mono-stereo controls
-- Rust multipart upload API
-- FFprobe analysis
-- background FFmpeg job
-- live progress polling
-- cancel processing
-- download result
+## Releases
 
-## Next milestones
-
-1. proper video metadata in the UI
-2. before/after preview frames
-3. custom preset saving
-4. processing history and cleanup
-5. WebSocket/SSE progress instead of polling
-6. GPU encoders when available
-7. auth + quotas for public deployment
-8. Docker image and reverse proxy preset
-
-## Important deployment note
-
-V0.1 is meant for local use or a trusted private network. Do not expose it directly to the public internet yet: upload quotas, authentication, disk cleanup, rate limiting, MIME validation, and hardened sandboxing should be added first.
+`.github/workflows/windows-release.yml` builds the Windows x64 app on GitHub Actions, downloads FFmpeg for bundling, and uploads the generated NSIS installer to a GitHub Release.
