@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import {
   AudioLines,
   Check,
+  ChevronDown,
   ChevronRight,
   CircleGauge,
   Film,
   FolderOpen,
-  Github,
   RotateCcw,
   SlidersHorizontal,
   Sparkles,
@@ -22,10 +22,12 @@ import { presets } from './presets'
 import type { PresetKey, Settings, VideoInfo } from './types'
 
 type ProcessStatus = 'idle' | 'probing' | 'processing' | 'completed' | 'failed' | 'cancelled'
+type ToastTone = 'success' | 'info'
 
 type ProgressPayload = { progress: number }
 type CompletePayload = { output_path: string }
 type ErrorPayload = { message: string }
+type ToastState = { tone: ToastTone; title: string; description?: string } | null
 
 function bytes(value: number) {
   if (!value) return '0 B'
@@ -41,6 +43,10 @@ function duration(value: number) {
   return `${min}:${sec}`
 }
 
+function fileName(path: string) {
+  return path.split(/[\\/]/).pop() ?? path
+}
+
 function App() {
   const [inputPath, setInputPath] = useState<string | null>(null)
   const [info, setInfo] = useState<VideoInfo | null>(null)
@@ -51,6 +57,7 @@ function App() {
   const [outputPath, setOutputPath] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [toast, setToast] = useState<ToastState>(null)
 
   const busy = status === 'probing' || status === 'processing'
   const previewUrl = useMemo(() => inputPath ? convertFileSrc(inputPath) : null, [inputPath])
@@ -70,6 +77,11 @@ function App() {
           setOutputPath(payload.output_path)
           setProgress(100)
           setStatus('completed')
+          setToast({
+            tone: 'success',
+            title: 'Video saved successfully',
+            description: fileName(payload.output_path),
+          })
         }),
         listen<ErrorPayload>('processing-error', ({ payload }) => {
           setError(payload.message)
@@ -78,6 +90,11 @@ function App() {
         listen('processing-cancelled', () => {
           setProgress(0)
           setStatus('cancelled')
+          setToast({
+            tone: 'info',
+            title: 'Processing stopped',
+            description: 'The current export was cancelled',
+          })
         }),
         getCurrentWebview().onDragDropEvent((event) => {
           if (event.payload.type === 'enter' || event.payload.type === 'over') setDragging(true)
@@ -100,6 +117,12 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 4200)
+    return () => window.clearTimeout(timer)
+  }, [toast])
+
   function choosePreset(key: PresetKey) {
     setPreset(key)
     setSettings({ ...presets[key].settings })
@@ -113,6 +136,7 @@ function App() {
     setProgress(0)
     setStatus('idle')
     setError(null)
+    setToast(null)
     try {
       setInfo(await probeVideo(path))
     } catch (e) {
@@ -129,6 +153,7 @@ function App() {
   async function start() {
     if (!inputPath || busy) return
     setError(null)
+    setToast(null)
     const destination = await chooseOutput(defaultOutputPath(inputPath))
     if (!destination) return
     setOutputPath(destination)
@@ -159,6 +184,7 @@ function App() {
     setProgress(0)
     setStatus('idle')
     setError(null)
+    setToast(null)
   }
 
   return (
@@ -170,16 +196,28 @@ function App() {
           <button className="nav-icon" title="History" disabled><CircleGauge size={18} /></button>
           <button className="nav-icon" title="Settings" disabled><SlidersHorizontal size={18} /></button>
         </nav>
-        <a className="nav-icon github" href="https://github.com/slyphmp4/VideoDowngrade" target="_blank" rel="noreferrer" title="GitHub"><Github size={18} /></a>
+        <a className="nav-icon github-link" href="https://github.com/slyphmp4/VideoDowngrade" target="_blank" rel="noreferrer" title="GitHub">GH</a>
       </aside>
 
       <main className="workspace">
+        <div className="toast-layer" aria-live="polite" aria-atomic="true">
+          {toast && (
+            <div className={`toast-card ${toast.tone}`}>
+              <div className="toast-indicator" />
+              <div className="toast-copy">
+                <strong>{toast.title}</strong>
+                {toast.description && <span>{toast.description}</span>}
+              </div>
+              <button className="toast-close" onClick={() => setToast(null)} aria-label="Close message"><X size={14} /></button>
+            </div>
+          )}
+        </div>
+
         <header className="topbar">
           <div>
             <div className="eyebrow">VIDEO LAB / DESKTOP 01</div>
             <h1>Degrade video.</h1>
           </div>
-          <div className="engine-badge"><span className="engine-dot" /> TAURI + RUST + FFMPEG</div>
         </header>
 
         <section className="stage-grid">
@@ -233,53 +271,75 @@ function App() {
           </div>
 
           <aside className="control-panel">
-            <div className="control-header">
-              <div><div className="eyebrow">MANUAL CONTROL</div><h2>Signal damage</h2></div>
-              <button className="icon-text" onClick={() => choosePreset('messenger')}><RotateCcw size={14} /> reset</button>
-            </div>
+            <div className="control-panel-scroll">
+              <div className="control-header">
+                <div><div className="eyebrow">MANUAL CONTROL</div><h2>Signal damage</h2></div>
+                <button className="icon-text" onClick={() => choosePreset('messenger')}><RotateCcw size={14} /> reset</button>
+              </div>
 
-            <Control label="Frame rate" value={`${settings.fps} fps`}>
-              <input type="range" min="20" max="25" value={settings.fps} onChange={(e) => setSettings({ ...settings, fps: +e.target.value })} />
-            </Control>
-            <Control label="Compression" value={`CRF ${settings.crf}`} note={`${quality}% signal`}>
-              <input type="range" min="18" max="45" value={settings.crf} onChange={(e) => setSettings({ ...settings, crf: +e.target.value })} />
-            </Control>
-            <Control label="Internal scale" value={`${Math.round(settings.downscale * 100)}%`}>
-              <input type="range" min="20" max="100" value={Math.round(settings.downscale * 100)} onChange={(e) => setSettings({ ...settings, downscale: +e.target.value / 100 })} />
-            </Control>
-            <Control label="Blur" value={settings.blur.toFixed(2)}>
-              <input type="range" min="0" max="2" step="0.05" value={settings.blur} onChange={(e) => setSettings({ ...settings, blur: +e.target.value })} />
-            </Control>
+              <Control label="Frame rate" value={`${settings.fps} fps`}>
+                <Slider min={20} max={25} value={settings.fps} onChange={(value) => setSettings({ ...settings, fps: value })} />
+              </Control>
+              <Control label="Compression" value={`CRF ${settings.crf}`} note={`${quality}% signal`}>
+                <Slider min={18} max={45} value={settings.crf} onChange={(value) => setSettings({ ...settings, crf: value })} />
+              </Control>
+              <Control label="Internal scale" value={`${Math.round(settings.downscale * 100)}%`}>
+                <Slider min={20} max={100} value={Math.round(settings.downscale * 100)} onChange={(value) => setSettings({ ...settings, downscale: value / 100 })} />
+              </Control>
+              <Control label="Blur" value={settings.blur.toFixed(2)}>
+                <Slider min={0} max={2} step={0.05} value={settings.blur} onChange={(value) => setSettings({ ...settings, blur: value })} />
+              </Control>
 
-            <div className="divider" />
-            <div className="mini-title"><AudioLines size={15} /> Audio damage</div>
-            <div className="two-controls">
-              <label className="select-control"><span>Bitrate</span><select value={settings.audio_bitrate} onChange={(e) => setSettings({ ...settings, audio_bitrate: +e.target.value })}>{[24, 32, 40, 48, 64, 96, 128].map(v => <option key={v} value={v}>{v} kbps</option>)}</select></label>
-              <label className="select-control"><span>Sample rate</span><select value={settings.sample_rate} onChange={(e) => setSettings({ ...settings, sample_rate: +e.target.value })}>{[8000, 12000, 16000, 22050, 24000, 32000, 44100, 48000].map(v => <option key={v} value={v}>{v / 1000} kHz</option>)}</select></label>
-            </div>
-            <div className="two-controls">
-              <label className="select-control"><span>Channels</span><select value={settings.channels} onChange={(e) => setSettings({ ...settings, channels: +e.target.value })}><option value="1">Mono</option><option value="2">Stereo</option></select></label>
-              <label className="select-control"><span>Output</span><select value={settings.height} onChange={(e) => setSettings({ ...settings, height: +e.target.value })}><option value="0">Original</option>{[1080, 720, 480, 360, 240].map(v => <option key={v} value={v}>{v}p</option>)}</select></label>
-            </div>
+              <div className="divider" />
+              <div className="mini-title"><AudioLines size={15} /> Audio damage</div>
+              <div className="two-controls">
+                <SelectControl
+                  label="Bitrate"
+                  value={settings.audio_bitrate}
+                  options={[24, 32, 40, 48, 64, 96, 128].map((v) => ({ value: v, label: `${v} kbps` }))}
+                  onChange={(value) => setSettings({ ...settings, audio_bitrate: value })}
+                />
+                <SelectControl
+                  label="Sample rate"
+                  value={settings.sample_rate}
+                  options={[8000, 12000, 16000, 22050, 24000, 32000, 44100, 48000].map((v) => ({ value: v, label: `${v / 1000} kHz` }))}
+                  onChange={(value) => setSettings({ ...settings, sample_rate: value })}
+                />
+              </div>
+              <div className="two-controls">
+                <SelectControl
+                  label="Channels"
+                  value={settings.channels}
+                  options={[{ value: 1, label: 'Mono' }, { value: 2, label: 'Stereo' }]}
+                  onChange={(value) => setSettings({ ...settings, channels: value })}
+                />
+                <SelectControl
+                  label="Output"
+                  value={settings.height}
+                  options={[{ value: 0, label: 'Original' }, ...[1080, 720, 480, 360, 240].map((v) => ({ value: v, label: `${v}p` }))]}
+                  onChange={(value) => setSettings({ ...settings, height: value })}
+                />
+              </div>
 
-            <div className="job-area">
-              {error && <div className="error-box">{error}</div>}
-              {status !== 'idle' && (
-                <div className="progress-card">
-                  <div className="progress-line"><span>{status}</span><strong>{Math.round(progress)}%</strong></div>
-                  <div className="progress-track"><div style={{ width: `${progress}%` }} /></div>
-                  {status === 'completed' && outputPath && <div className="output-path">saved · {outputPath}</div>}
-                </div>
-              )}
+              <div className="job-area">
+                {error && <div className="error-box">{error}</div>}
+                {status !== 'idle' && (
+                  <div className="progress-card">
+                    <div className="progress-line"><span>{status}</span><strong>{Math.round(progress)}%</strong></div>
+                    <div className="progress-track"><div style={{ width: `${progress}%` }} /></div>
+                    {status === 'completed' && outputPath && <div className="output-chip">ready · {fileName(outputPath)}</div>}
+                  </div>
+                )}
 
-              {busy ? (
-                <button className="process-button cancel" onClick={() => void cancel()}><Square size={16} fill="currentColor" /> Stop processing</button>
-              ) : (
-                <button className={`process-button ${status === 'completed' ? 'done' : ''}`} disabled={!inputPath || !info} onClick={() => void start()}>
-                  {status === 'completed' ? 'Process again' : 'Process video'} <ChevronRight size={17} />
-                </button>
-              )}
-              <p className="privacy-note">100% local · native Rust core · bundled FFmpeg</p>
+                {busy ? (
+                  <button className="process-button cancel" onClick={() => void cancel()}><Square size={16} fill="currentColor" /> Stop processing</button>
+                ) : (
+                  <button className={`process-button ${status === 'completed' ? 'done' : ''}`} disabled={!inputPath || !info} onClick={() => void start()}>
+                    {status === 'completed' ? 'Process again' : 'Process video'} <ChevronRight size={17} />
+                  </button>
+                )}
+                <p className="privacy-note">100% local · native Rust core · bundled FFmpeg</p>
+              </div>
             </div>
           </aside>
         </section>
@@ -293,6 +353,158 @@ function Control({ label, value, note, children }: { label: string; value: strin
     <div className="control">
       <div className="control-line"><span>{label}</span><div><strong>{value}</strong>{note && <small>{note}</small>}</div></div>
       {children}
+    </div>
+  )
+}
+
+function SelectControl({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: number
+  options: Array<{ value: number; label: string }>
+  onChange: (value: number) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const selected = options.find((option) => option.value === value) ?? options[0]
+
+  useEffect(() => {
+    if (!open) return
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  return (
+    <div className={`select-control custom-select ${open ? 'open' : ''}`} ref={rootRef}>
+      <span>{label}</span>
+      <button
+        type="button"
+        className="custom-select-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span>{selected?.label}</span>
+        <ChevronDown size={14} />
+      </button>
+      {open && (
+        <div className="custom-select-menu" role="listbox">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              className={`custom-select-option ${option.value === value ? 'selected' : ''}`}
+              onClick={() => {
+                onChange(option.value)
+                setOpen(false)
+              }}
+            >
+              <span>{option.label}</span>
+              {option.value === value && <Check size={13} />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Slider({
+  min,
+  max,
+  value,
+  onChange,
+  step = 1,
+}: {
+  min: number
+  max: number
+  value: number
+  onChange: (value: number) => void
+  step?: number
+}) {
+  const sliderRef = useRef<HTMLDivElement | null>(null)
+  const progress = ((value - min) / (max - min)) * 100
+
+  function clamp(next: number) {
+    const stepped = Math.round(next / step) * step
+    const bounded = Math.min(max, Math.max(min, stepped))
+    return step < 1 ? Number(bounded.toFixed(2)) : bounded
+  }
+
+  function valueFromClientX(clientX: number) {
+    const rect = sliderRef.current?.getBoundingClientRect()
+    if (!rect || rect.width <= 0) return value
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    return clamp(min + ratio * (max - min))
+  }
+
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault()
+    onChange(valueFromClientX(event.clientX))
+
+    const move = (nextEvent: PointerEvent) => onChange(valueFromClientX(nextEvent.clientX))
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+      event.preventDefault()
+      onChange(clamp(value - step))
+    }
+    if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      onChange(clamp(value + step))
+    }
+    if (event.key === 'Home') {
+      event.preventDefault()
+      onChange(min)
+    }
+    if (event.key === 'End') {
+      event.preventDefault()
+      onChange(max)
+    }
+  }
+
+  return (
+    <div
+      ref={sliderRef}
+      className="app-slider"
+      role="slider"
+      tabIndex={0}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={value}
+      onPointerDown={onPointerDown}
+      onKeyDown={onKeyDown}
+    >
+      <div className="app-slider-track" />
+      <div className="app-slider-fill" style={{ width: `${progress}%` }} />
+      <div className="app-slider-thumb" style={{ left: `${progress}%` }} />
     </div>
   )
 }
