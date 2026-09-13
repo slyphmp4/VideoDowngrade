@@ -17,8 +17,7 @@ const defaultPreferences: AppPreferences = {
 function clickSlider(slider: HTMLElement, target: number) {
   const min = Number(slider.getAttribute('aria-valuemin') ?? 0)
   const max = Number(slider.getAttribute('aria-valuemax') ?? 100)
-  const current = Number(slider.getAttribute('aria-valuenow') ?? min)
-  const step = Math.abs(max - min) > 30 ? 1 : current % 1 !== 0 ? 0.05 : 1
+  const step = max <= 2 ? 0.05 : 1
   slider.focus()
   slider.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }))
   const count = Math.max(0, Math.round((target - min) / step))
@@ -45,10 +44,10 @@ function applySettings(settings: Settings) {
   const values = [settings.fps, settings.crf, Math.round(settings.downscale * 100), settings.blur, settings.color_retention]
   sliders.slice(0, values.length).forEach((slider, index) => clickSlider(slider, values[index]))
 
-  chooseSelect('Bitrate', `${settings.audio_bitrate} kbps`)
-  chooseSelect('Sample rate', `${settings.sample_rate / 1000} kHz`)
-  chooseSelect('Channels', settings.channels === 1 ? 'Mono' : 'Stereo')
-  chooseSelect('Output', settings.height === 0 ? 'Original' : `${settings.height}p`)
+  window.setTimeout(() => chooseSelect('Bitrate', `${settings.audio_bitrate} kbps`), 40)
+  window.setTimeout(() => chooseSelect('Sample rate', `${settings.sample_rate / 1000} kHz`), 110)
+  window.setTimeout(() => chooseSelect('Channels', settings.channels === 1 ? 'Mono' : 'Stereo'), 180)
+  window.setTimeout(() => chooseSelect('Output', settings.height === 0 ? 'Original' : `${settings.height}p`), 250)
 }
 
 function applyStartupPreset(preferences: AppPreferences) {
