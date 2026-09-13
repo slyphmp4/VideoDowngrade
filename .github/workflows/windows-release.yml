@@ -3,8 +3,7 @@ name: Windows Release
 on:
   workflow_dispatch:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
 
 permissions:
   contents: write
@@ -63,4 +62,4 @@ jobs:
           releaseDraft: false
           prerelease: true
           args: --bundles nsis
-          releaseAssetNamePattern: 'VideoDowngrade_[version]_Windows_x64[setup][ext]'
+          assetNamePattern: 'VideoDowngrade_[version]_Windows_x64[setup][ext]'
