@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::{
+    io::ErrorKind,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -18,7 +19,7 @@ struct ProcessState {
     cancelled: AtomicBool,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Settings {
     fps: u32,
     height: u32,
@@ -31,6 +32,13 @@ struct Settings {
     channels: u32,
     highpass: u32,
     lowpass: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CustomPreset {
+    id: String,
+    name: String,
+    settings: Settings,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -79,6 +87,52 @@ struct ProbeFormat {
 #[tauri::command]
 async fn probe_video(app: AppHandle, path: String) -> Result<VideoInfo, String> {
     probe(&app, Path::new(&path)).await
+}
+
+#[tauri::command]
+fn load_custom_presets(app: AppHandle) -> Result<Vec<CustomPreset>, String> {
+    read_custom_presets(&app)
+}
+
+#[tauri::command]
+fn save_custom_preset(app: AppHandle, mut preset: CustomPreset) -> Result<Vec<CustomPreset>, String> {
+    preset.id = preset.id.trim().to_string();
+    preset.name = preset.name.trim().to_string();
+
+    if preset.id.is_empty() || preset.id.len() > 96 {
+        return Err("Invalid preset id".into());
+    }
+    if preset.name.is_empty() {
+        return Err("Preset name cannot be empty".into());
+    }
+    if preset.name.chars().count() > 48 {
+        return Err("Preset name can contain at most 48 characters".into());
+    }
+    validate_settings(&preset.settings)?;
+
+    let mut presets = read_custom_presets(&app)?;
+    if presets.iter().any(|item| {
+        item.id != preset.id && item.name.eq_ignore_ascii_case(&preset.name)
+    }) {
+        return Err("A preset with this name already exists".into());
+    }
+
+    if let Some(index) = presets.iter().position(|item| item.id == preset.id) {
+        presets[index] = preset;
+    } else {
+        presets.push(preset);
+    }
+
+    write_custom_presets(&app, &presets)?;
+    Ok(presets)
+}
+
+#[tauri::command]
+fn delete_custom_preset(app: AppHandle, id: String) -> Result<Vec<CustomPreset>, String> {
+    let mut presets = read_custom_presets(&app)?;
+    presets.retain(|item| item.id != id);
+    write_custom_presets(&app, &presets)?;
+    Ok(presets)
 }
 
 #[tauri::command]
@@ -222,6 +276,33 @@ fn clear_child(app: &AppHandle) {
     if let Ok(mut child) = app.state::<ProcessState>().child.lock() {
         let _ = child.take();
     }
+}
+
+fn custom_presets_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.join("presets.json"))
+}
+
+fn read_custom_presets(app: &AppHandle) -> Result<Vec<CustomPreset>, String> {
+    let path = custom_presets_path(app)?;
+    match std::fs::read_to_string(&path) {
+        Ok(content) => {
+            if content.trim().is_empty() {
+                return Ok(Vec::new());
+            }
+            serde_json::from_str(&content)
+                .map_err(|e| format!("Could not read saved presets: {e}"))
+        }
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(Vec::new()),
+        Err(error) => Err(format!("Could not open saved presets: {error}")),
+    }
+}
+
+fn write_custom_presets(app: &AppHandle, presets: &[CustomPreset]) -> Result<(), String> {
+    let path = custom_presets_path(app)?;
+    let json = serde_json::to_string_pretty(presets).map_err(|e| e.to_string())?;
+    std::fs::write(path, json).map_err(|e| format!("Could not save presets: {e}"))
 }
 
 async fn probe(app: &AppHandle, path: &Path) -> Result<VideoInfo, String> {
@@ -411,6 +492,9 @@ pub fn run() {
         .manage(ProcessState::default())
         .invoke_handler(tauri::generate_handler![
             probe_video,
+            load_custom_presets,
+            save_custom_preset,
+            delete_custom_preset,
             start_processing,
             cancel_processing
         ])
