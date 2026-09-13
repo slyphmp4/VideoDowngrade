@@ -1,6 +1,6 @@
 [package]
 name = "videodowngrade"
-version = "0.2.4"
+version = "0.2.5"
 description = "A desktop video and audio degradation lab"
 authors = ["slyphmp4"]
 edition = "2021"
