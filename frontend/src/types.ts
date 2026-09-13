@@ -14,6 +14,12 @@ export type Settings = {
   lowpass: number
 }
 
+export type CustomPreset = {
+  id: string
+  name: string
+  settings: Settings
+}
+
 export type VideoInfo = {
   width: number
   height: number
