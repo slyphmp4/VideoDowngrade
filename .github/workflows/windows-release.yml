@@ -1,9 +1,10 @@
 name: Windows Release
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -33,6 +34,12 @@ jobs:
 
       - name: Install React dependencies
         run: npm --prefix frontend install
+
+      - name: Prepare app icons
+        shell: powershell
+        run: |
+          ./scripts/prepare-icon.ps1
+          npx tauri icon src-tauri/icons/icon.png
 
       - name: Prepare bundled FFmpeg
         shell: powershell
