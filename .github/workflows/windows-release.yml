@@ -3,6 +3,8 @@ name: Windows Release
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -53,13 +55,15 @@ jobs:
           tagName: v__VERSION__
           releaseName: 'VideoDowngrade v__VERSION__'
           releaseBody: |
-            Native Windows desktop build of VideoDowngrade.
+            VideoDowngrade v0.2.5 — processed preview comparison.
 
-            - React + Tauri 2 interface
-            - native Rust processing core
+            - processed video automatically replaces the preview after export
+            - Original / Processed switch for instant before-after comparison
+            - smooth animated transition when switching preview source
+            - metadata follows the currently previewed file
+            - preserves the dark monochrome Swiss grid UI
+            - React + Tauri 2 + Rust
             - bundled FFmpeg / FFprobe
-            - local-only file processing
-            - NSIS Windows installer
           releaseDraft: false
           prerelease: true
           args: --bundles nsis
