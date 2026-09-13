@@ -25,6 +25,7 @@ struct Settings {
     crf: u32,
     downscale: f64,
     blur: f64,
+    color_retention: u32,
     audio_bitrate: u32,
     sample_rate: u32,
     channels: u32,
@@ -289,6 +290,9 @@ fn validate_settings(settings: &Settings) -> Result<(), String> {
     if !(0.0..=2.0).contains(&settings.blur) {
         return Err("Blur must be between 0.00 and 2.00".into());
     }
+    if settings.color_retention > 100 {
+        return Err("Color retention must be between 0 and 100".into());
+    }
     if ![0, 240, 360, 480, 720, 1080].contains(&settings.height) {
         return Err("Unsupported output height".into());
     }
@@ -318,6 +322,11 @@ fn build_ffmpeg_args(input: &Path, output: &Path, s: &Settings, info: &VideoInfo
         if s.blur > 0.0 {
             vf.push(format!("gblur=sigma={:.2}", s.blur));
         }
+    }
+
+    if s.color_retention < 100 {
+        let saturation = s.color_retention as f64 / 100.0;
+        vf.push(format!("eq=saturation={saturation:.3}"));
     }
 
     let mut args = vec![
