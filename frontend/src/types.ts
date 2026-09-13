@@ -13,11 +13,11 @@ export type Settings = {
   lowpass: number
 }
 
-export type Job = {
-  id: string
+export type VideoInfo = {
+  width: number
+  height: number
+  duration: number
+  has_audio: boolean
+  file_size: number
   filename: string
-  status: 'queued' | 'probing' | 'processing' | 'completed' | 'failed' | 'cancelled'
-  progress: number
-  output_filename: string | null
-  error: string | null
 }
