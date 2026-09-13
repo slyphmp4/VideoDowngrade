@@ -3,6 +3,8 @@ name: Windows Release
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -53,13 +55,16 @@ jobs:
           tagName: v__VERSION__
           releaseName: 'VideoDowngrade v__VERSION__'
           releaseBody: |
-            Native Windows desktop build of VideoDowngrade.
+            VideoDowngrade v0.2.2 — dark monochrome interaction refinement.
 
-            - React + Tauri 2 interface
-            - native Rust processing core
+            - dark surfaces throughout the default theme
+            - clearer black/white interaction hierarchy
+            - white primary actions and inverted selected states
+            - darker presets, dropdowns and control surfaces
+            - preserved 24px modular grid
+            - preserved layout and subtle motion system
+            - React + Tauri 2 + Rust
             - bundled FFmpeg / FFprobe
-            - local-only file processing
-            - NSIS Windows installer
           releaseDraft: false
           prerelease: true
           args: --bundles nsis
