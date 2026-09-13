@@ -5,6 +5,7 @@ import './styles.css'
 import './button-overrides.css'
 import './contrast-overrides.css'
 import './interaction-polish.css'
+import './comparison-preview.css'
 
 function installUiGuards() {
   const prevent = (event: Event) => event.preventDefault()
