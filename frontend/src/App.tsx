@@ -28,6 +28,7 @@ type ProgressPayload = { progress: number }
 type CompletePayload = { output_path: string }
 type ErrorPayload = { message: string }
 type ToastState = { tone: ToastTone; title: string; description?: string } | null
+type PreviewMode = 'original' | 'processed'
 
 function bytes(value: number) {
   if (!value) return '0 B'
@@ -58,9 +59,15 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const [toast, setToast] = useState<ToastState>(null)
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('original')
+  const [processedInfo, setProcessedInfo] = useState<VideoInfo | null>(null)
 
   const busy = status === 'probing' || status === 'processing'
-  const previewUrl = useMemo(() => inputPath ? convertFileSrc(inputPath) : null, [inputPath])
+  const originalPreviewUrl = useMemo(() => inputPath ? convertFileSrc(inputPath) : null, [inputPath])
+  const processedPreviewUrl = useMemo(() => outputPath ? convertFileSrc(outputPath) : null, [outputPath])
+  const previewUrl = previewMode === 'processed' && processedPreviewUrl ? processedPreviewUrl : originalPreviewUrl
+  const previewInfo = previewMode === 'processed' ? processedInfo : info
+  const previewPath = previewMode === 'processed' && outputPath ? outputPath : inputPath
   const quality = useMemo(() => Math.round((1 - (settings.crf - 18) / 27) * 100), [settings.crf])
 
   useEffect(() => {
@@ -75,6 +82,9 @@ function App() {
         listen<ProgressPayload>('processing-progress', ({ payload }) => setProgress(payload.progress)),
         listen<CompletePayload>('processing-complete', ({ payload }) => {
           setOutputPath(payload.output_path)
+          setPreviewMode('processed')
+          setProcessedInfo(null)
+          void probeVideo(payload.output_path).then(setProcessedInfo).catch(() => setProcessedInfo(null))
           setProgress(100)
           setStatus('completed')
           setToast({
@@ -133,6 +143,8 @@ function App() {
     setInputPath(path)
     setInfo(null)
     setOutputPath(null)
+    setProcessedInfo(null)
+    setPreviewMode('original')
     setProgress(0)
     setStatus('idle')
     setError(null)
@@ -156,7 +168,9 @@ function App() {
     setToast(null)
     const destination = await chooseOutput(defaultOutputPath(inputPath))
     if (!destination) return
-    setOutputPath(destination)
+    setPreviewMode('original')
+    setOutputPath(null)
+    setProcessedInfo(null)
     setProgress(0)
     setStatus('probing')
     try {
@@ -181,6 +195,8 @@ function App() {
     setInputPath(null)
     setInfo(null)
     setOutputPath(null)
+    setProcessedInfo(null)
+    setPreviewMode('original')
     setProgress(0)
     setStatus('idle')
     setError(null)
@@ -236,17 +252,38 @@ function App() {
               ) : (
                 <div className="file-card">
                   <div className="preview-surface">
-                    <video src={previewUrl ?? undefined} controls preload="metadata" />
+                    <div key={`${previewMode}:${previewUrl ?? 'empty'}`} className="preview-media-shell">
+                      <video src={previewUrl ?? undefined} controls preload="metadata" />
+                    </div>
                     <div className="preview-grid" />
+                    {outputPath && (
+                      <div className="compare-switch" role="group" aria-label="Compare original and processed video">
+                        <button
+                          type="button"
+                          className={previewMode === 'original' ? 'active' : ''}
+                          onClick={(e) => { e.stopPropagation(); setPreviewMode('original') }}
+                        >
+                          Original
+                        </button>
+                        <button
+                          type="button"
+                          className={previewMode === 'processed' ? 'active' : ''}
+                          onClick={(e) => { e.stopPropagation(); setPreviewMode('processed') }}
+                        >
+                          Processed
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="file-meta">
                     <div className="file-icon"><Film size={18} /></div>
                     <div className="file-copy">
-                      <strong>{info?.filename ?? inputPath.split(/[\\/]/).pop()}</strong>
+                      <strong>{previewInfo?.filename ?? (previewPath ? fileName(previewPath) : '')}</strong>
                       <span>
-                        {info ? `${info.width}×${info.height} · ${duration(info.duration)} · ${bytes(info.file_size)} · ${info.has_audio ? 'audio' : 'silent'}` : 'reading media…'}
+                        {previewInfo ? `${previewInfo.width}×${previewInfo.height} · ${duration(previewInfo.duration)} · ${bytes(previewInfo.file_size)} · ${previewInfo.has_audio ? 'audio' : 'silent'}` : previewMode === 'processed' ? 'reading processed media…' : 'reading media…'}
                       </span>
                     </div>
+                    <div className="preview-state-label">{previewMode === 'processed' ? 'AFTER' : 'BEFORE'}</div>
                     <button className="clear-button" disabled={busy} onClick={(e) => { e.stopPropagation(); clearFile() }} title="Remove"><X size={17} /></button>
                   </div>
                 </div>
