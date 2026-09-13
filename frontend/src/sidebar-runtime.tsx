@@ -29,7 +29,8 @@ function clickSlider(slider: HTMLElement, target: number) {
 function chooseSelect(label: string, optionText: string) {
   const controls = Array.from(document.querySelectorAll<HTMLElement>('.select-control'))
   const control = controls.find((item) => item.querySelector(':scope > span')?.textContent?.trim().toLowerCase() === label.toLowerCase())
-  const trigger = control?.querySelector<HTMLButtonElement>('.custom-select-trigger')
+  if (!control) return
+  const trigger = control.querySelector<HTMLButtonElement>('.custom-select-trigger')
   if (!trigger) return
   trigger.click()
   requestAnimationFrame(() => {
