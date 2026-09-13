@@ -17,9 +17,10 @@ import {
   UploadCloud,
   X,
 } from 'lucide-react'
+import { CustomPresetLibrary } from './custom-presets'
 import { cancelProcessing, chooseOutput, chooseVideo, defaultOutputPath, probeVideo, startProcessing } from './native'
 import { presets } from './presets'
-import type { PresetKey, Settings, VideoInfo } from './types'
+import type { CustomPreset, PresetKey, Settings, VideoInfo } from './types'
 
 type ProcessStatus = 'idle' | 'probing' | 'processing' | 'completed' | 'failed' | 'cancelled'
 type ToastTone = 'success' | 'info'
@@ -51,7 +52,7 @@ function fileName(path: string) {
 function App() {
   const [inputPath, setInputPath] = useState<string | null>(null)
   const [info, setInfo] = useState<VideoInfo | null>(null)
-  const [preset, setPreset] = useState<PresetKey>('messenger')
+  const [preset, setPreset] = useState<PresetKey | null>('messenger')
   const [settings, setSettings] = useState<Settings>({ ...presets.messenger.settings })
   const [status, setStatus] = useState<ProcessStatus>('idle')
   const [progress, setProgress] = useState(0)
@@ -136,6 +137,11 @@ function App() {
   function choosePreset(key: PresetKey) {
     setPreset(key)
     setSettings({ ...presets[key].settings })
+  }
+
+  function chooseCustomPreset(customPreset: CustomPreset) {
+    setPreset(null)
+    setSettings({ ...customPreset.settings })
   }
 
   async function selectPath(path: string) {
@@ -304,6 +310,13 @@ function App() {
                   </button>
                 ))}
               </div>
+              <CustomPresetLibrary
+                currentSettings={settings}
+                builtinPreset={preset}
+                onApply={chooseCustomPreset}
+                onNotice={(title, description) => setToast({ tone: 'success', title, description })}
+                onError={(message) => setToast({ tone: 'info', title: 'Preset error', description: message })}
+              />
             </section>
           </div>
 
