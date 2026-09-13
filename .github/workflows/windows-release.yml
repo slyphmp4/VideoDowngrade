@@ -3,6 +3,8 @@ name: Windows Release
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -53,13 +55,18 @@ jobs:
           tagName: v__VERSION__
           releaseName: 'VideoDowngrade v__VERSION__'
           releaseBody: |
-            Native Windows desktop build of VideoDowngrade.
+            VideoDowngrade v0.2.8 — functional sidebar tools.
 
-            - React + Tauri 2 interface
-            - native Rust processing core
+            - History is now a real workspace with the latest 50 successful exports
+            - processing history persists locally in app config
+            - reuse the damage settings from a previous export
+            - Settings is now a real workspace
+            - control automatic AFTER preview, interface motion and startup Character preset
+            - clear local processing history from History or Settings
+            - ultra-minimal scrollbars replace the Chrome-like scrollbar treatment
+            - removed the redundant local/native/FFmpeg footer copy
+            - React + Tauri 2 + Rust
             - bundled FFmpeg / FFprobe
-            - local-only file processing
-            - NSIS Windows installer
           releaseDraft: false
           prerelease: true
           args: --bundles nsis
