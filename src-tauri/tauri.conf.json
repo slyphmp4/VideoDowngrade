@@ -42,6 +42,12 @@
     "category": "Utility",
     "shortDescription": "Controlled video and audio quality degradation",
     "longDescription": "VideoDowngrade intentionally degrades video and audio using configurable FFmpeg processing presets.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
     "externalBin": [
       "binaries/ffmpeg",
       "binaries/ffprobe"
@@ -49,7 +55,6 @@
     "windows": {
       "nsis": {
         "displayLanguageSelector": false,
-        "installerIcon": null,
         "installMode": "currentUser"
       }
     }
