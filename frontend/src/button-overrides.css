@@ -1,0 +1,23 @@
+.process-button:not(.cancel) {
+  justify-content: flex-start;
+  gap: 0;
+  padding-left: 20px;
+  padding-right: 10px;
+}
+
+.process-button:not(.cancel) svg:last-child {
+  margin-left: auto;
+  margin-right: 6px;
+}
+
+.process-button.cancel {
+  justify-content: flex-start;
+  gap: 24px;
+  padding-left: 18px;
+  padding-right: 18px;
+}
+
+.process-button.cancel svg:last-child {
+  flex: 0 0 auto;
+  margin: 0;
+}
