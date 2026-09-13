@@ -17,12 +17,12 @@ $dark = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(25
 $graphics.FillEllipse($dark, 190, 190, 644, 644)
 
 $points = [System.Drawing.Point[]]@(
-  (New-Object System.Drawing.Point(260, 390)),
-  (New-Object System.Drawing.Point(395, 390)),
-  (New-Object System.Drawing.Point(512, 570)),
-  (New-Object System.Drawing.Point(629, 390)),
-  (New-Object System.Drawing.Point(764, 390)),
-  (New-Object System.Drawing.Point(512, 720))
+  [System.Drawing.Point]::new(260, 390),
+  [System.Drawing.Point]::new(395, 390),
+  [System.Drawing.Point]::new(512, 570),
+  [System.Drawing.Point]::new(629, 390),
+  [System.Drawing.Point]::new(764, 390),
+  [System.Drawing.Point]::new(512, 720)
 )
 $graphics.FillPolygon($lime, $points)
 
