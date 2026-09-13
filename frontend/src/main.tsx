@@ -1,12 +1,14 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { SidebarRuntime } from './sidebar-runtime'
 import './styles.css'
 import './button-overrides.css'
 import './contrast-overrides.css'
 import './interaction-polish.css'
 import './comparison-preview.css'
 import './custom-presets.css'
+import './workspace-pages.css'
 
 function installUiGuards() {
   const prevent = (event: Event) => event.preventDefault()
@@ -23,13 +25,8 @@ function installUiGuards() {
 
   window.addEventListener('keydown', (event) => {
     const key = event.key.toLowerCase()
-    const devToolsShortcut =
-      event.key === 'F12' ||
-      (event.ctrlKey && event.shiftKey && ['i', 'j', 'c'].includes(key)) ||
-      (event.ctrlKey && key === 'u')
-
+    const devToolsShortcut = event.key === 'F12' || (event.ctrlKey && event.shiftKey && ['i', 'j', 'c'].includes(key)) || (event.ctrlKey && key === 'u')
     const copyShortcut = event.ctrlKey && ['c', 'x'].includes(key)
-
     if (devToolsShortcut || copyShortcut) {
       event.preventDefault()
       event.stopPropagation()
@@ -42,5 +39,6 @@ installUiGuards()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
+    <SidebarRuntime />
   </StrictMode>,
 )
