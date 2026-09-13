@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { convertFileSrc } from '@tauri-apps/api/core'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import { getCurrentWebview } from '@tauri-apps/api/webview'
 import {
-  ArrowDownToLine,
   AudioLines,
   Check,
   ChevronRight,
@@ -15,11 +17,15 @@ import {
   UploadCloud,
   X,
 } from 'lucide-react'
-import { cancelJob, createJob, getJob } from './api'
+import { cancelProcessing, chooseOutput, chooseVideo, defaultOutputPath, probeVideo, startProcessing } from './native'
 import { presets } from './presets'
-import type { Job, PresetKey, Settings } from './types'
+import type { PresetKey, Settings, VideoInfo } from './types'
 
-const terminalStatuses = new Set(['completed', 'failed', 'cancelled'])
+type ProcessStatus = 'idle' | 'probing' | 'processing' | 'completed' | 'failed' | 'cancelled'
+
+type ProgressPayload = { progress: number }
+type CompletePayload = { output_path: string }
+type ErrorPayload = { message: string }
 
 function bytes(value: number) {
   if (!value) return '0 B'
@@ -28,63 +34,132 @@ function bytes(value: number) {
   return `${(value / 1024 ** i).toFixed(i > 1 ? 2 : 1)} ${units[i]}`
 }
 
+function duration(value: number) {
+  if (!Number.isFinite(value)) return '0:00'
+  const min = Math.floor(value / 60)
+  const sec = Math.floor(value % 60).toString().padStart(2, '0')
+  return `${min}:${sec}`
+}
+
 function App() {
-  const [file, setFile] = useState<File | null>(null)
+  const [inputPath, setInputPath] = useState<string | null>(null)
+  const [info, setInfo] = useState<VideoInfo | null>(null)
   const [preset, setPreset] = useState<PresetKey>('messenger')
   const [settings, setSettings] = useState<Settings>({ ...presets.messenger.settings })
-  const [job, setJob] = useState<Job | null>(null)
+  const [status, setStatus] = useState<ProcessStatus>('idle')
+  const [progress, setProgress] = useState(0)
+  const [outputPath, setOutputPath] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [dragging, setDragging] = useState(false)
 
-  const busy = Boolean(job && !terminalStatuses.has(job.status))
-  const previewUrl = useMemo(() => file ? URL.createObjectURL(file) : null, [file])
+  const busy = status === 'probing' || status === 'processing'
+  const previewUrl = useMemo(() => inputPath ? convertFileSrc(inputPath) : null, [inputPath])
   const quality = useMemo(() => Math.round((1 - (settings.crf - 18) / 27) * 100), [settings.crf])
 
-  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
-
   useEffect(() => {
-    if (!job || terminalStatuses.has(job.status)) return
-    const timer = window.setInterval(async () => {
-      try {
-        const next = await getJob(job.id)
-        setJob(next)
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Could not read job state')
-      }
-    }, 600)
-    return () => window.clearInterval(timer)
-  }, [job?.id, job?.status])
+    const unlisteners: UnlistenFn[] = []
+    let disposed = false
+
+    async function connect() {
+      const listeners = await Promise.all([
+        listen<string>('processing-status', ({ payload }) => {
+          if (payload === 'probing' || payload === 'processing') setStatus(payload)
+        }),
+        listen<ProgressPayload>('processing-progress', ({ payload }) => setProgress(payload.progress)),
+        listen<CompletePayload>('processing-complete', ({ payload }) => {
+          setOutputPath(payload.output_path)
+          setProgress(100)
+          setStatus('completed')
+        }),
+        listen<ErrorPayload>('processing-error', ({ payload }) => {
+          setError(payload.message)
+          setStatus('failed')
+        }),
+        listen('processing-cancelled', () => {
+          setProgress(0)
+          setStatus('cancelled')
+        }),
+        getCurrentWebview().onDragDropEvent((event) => {
+          if (event.payload.type === 'enter' || event.payload.type === 'over') setDragging(true)
+          if (event.payload.type === 'leave') setDragging(false)
+          if (event.payload.type === 'drop') {
+            setDragging(false)
+            const path = event.payload.paths[0]
+            if (path) void selectPath(path)
+          }
+        }),
+      ])
+      if (disposed) listeners.forEach((off) => off())
+      else unlisteners.push(...listeners)
+    }
+
+    void connect()
+    return () => {
+      disposed = true
+      unlisteners.forEach((off) => off())
+    }
+  }, [])
 
   function choosePreset(key: PresetKey) {
     setPreset(key)
     setSettings({ ...presets[key].settings })
   }
 
-  function selectFile(next: File | null) {
-    if (!next) return
-    setFile(next)
-    setJob(null)
+  async function selectPath(path: string) {
+    if (busy) return
+    setInputPath(path)
+    setInfo(null)
+    setOutputPath(null)
+    setProgress(0)
+    setStatus('idle')
     setError(null)
+    try {
+      setInfo(await probeVideo(path))
+    } catch (e) {
+      setInputPath(null)
+      setError(String(e))
+    }
+  }
+
+  async function browse() {
+    const path = await chooseVideo()
+    if (path) await selectPath(path)
   }
 
   async function start() {
-    if (!file || busy) return
+    if (!inputPath || busy) return
     setError(null)
+    const destination = await chooseOutput(defaultOutputPath(inputPath))
+    if (!destination) return
+    setOutputPath(destination)
+    setProgress(0)
+    setStatus('probing')
     try {
-      const created = await createJob(file, settings)
-      setJob(created)
+      await startProcessing(inputPath, destination, settings)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Upload failed')
+      setStatus('failed')
+      setError(String(e))
     }
   }
 
   async function cancel() {
-    if (!job || !busy) return
-    await cancelJob(job.id)
-    setJob(await getJob(job.id))
+    if (!busy) return
+    try {
+      await cancelProcessing()
+    } catch (e) {
+      setError(String(e))
+    }
   }
 
-  const progress = job?.progress ?? 0
+  function clearFile() {
+    if (busy) return
+    setInputPath(null)
+    setInfo(null)
+    setOutputPath(null)
+    setProgress(0)
+    setStatus('idle')
+    setError(null)
+  }
 
   return (
     <div className="app-shell">
@@ -95,33 +170,30 @@ function App() {
           <button className="nav-icon" title="History" disabled><CircleGauge size={18} /></button>
           <button className="nav-icon" title="Settings" disabled><SlidersHorizontal size={18} /></button>
         </nav>
-        <a className="nav-icon github" href="https://github.com" target="_blank" rel="noreferrer" title="GitHub"><Github size={18} /></a>
+        <a className="nav-icon github" href="https://github.com/slyphmp4/VideoDowngrade" target="_blank" rel="noreferrer" title="GitHub"><Github size={18} /></a>
       </aside>
 
       <main className="workspace">
         <header className="topbar">
           <div>
-            <div className="eyebrow">VIDEO LAB / 01</div>
+            <div className="eyebrow">VIDEO LAB / DESKTOP 01</div>
             <h1>Degrade video.</h1>
           </div>
-          <div className="engine-badge"><span className="engine-dot" /> RUST + FFMPEG</div>
+          <div className="engine-badge"><span className="engine-dot" /> TAURI + RUST + FFMPEG</div>
         </header>
 
         <section className="stage-grid">
           <div className="left-column">
             <section
-              className={`dropzone ${file ? 'has-file' : ''}`}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); selectFile(e.dataTransfer.files[0] ?? null) }}
-              onClick={() => !file && inputRef.current?.click()}
+              className={`dropzone ${inputPath ? 'has-file' : ''} ${dragging ? 'dragging' : ''}`}
+              onClick={() => !inputPath && void browse()}
             >
-              <input ref={inputRef} type="file" accept="video/*" hidden onChange={(e) => selectFile(e.target.files?.[0] ?? null)} />
-              {!file ? (
+              {!inputPath ? (
                 <div className="empty-drop">
                   <div className="upload-orb"><UploadCloud size={23} /></div>
                   <h2>Drop a video here</h2>
-                  <p>or choose a file from your computer</p>
-                  <button className="ghost-button" onClick={(e) => { e.stopPropagation(); inputRef.current?.click() }}><FolderOpen size={16} /> Choose video</button>
+                  <p>native file access · nothing is uploaded anywhere</p>
+                  <button className="ghost-button" onClick={(e) => { e.stopPropagation(); void browse() }}><FolderOpen size={16} /> Choose video</button>
                 </div>
               ) : (
                 <div className="file-card">
@@ -132,10 +204,12 @@ function App() {
                   <div className="file-meta">
                     <div className="file-icon"><Film size={18} /></div>
                     <div className="file-copy">
-                      <strong>{file.name}</strong>
-                      <span>{bytes(file.size)} · local source</span>
+                      <strong>{info?.filename ?? inputPath.split(/[\\/]/).pop()}</strong>
+                      <span>
+                        {info ? `${info.width}×${info.height} · ${duration(info.duration)} · ${bytes(info.file_size)} · ${info.has_audio ? 'audio' : 'silent'}` : 'reading media…'}
+                      </span>
                     </div>
-                    <button className="clear-button" onClick={(e) => { e.stopPropagation(); setFile(null); setJob(null) }} title="Remove"><X size={17} /></button>
+                    <button className="clear-button" disabled={busy} onClick={(e) => { e.stopPropagation(); clearFile() }} title="Remove"><X size={17} /></button>
                   </div>
                 </div>
               )}
@@ -185,26 +259,27 @@ function App() {
             </div>
             <div className="two-controls">
               <label className="select-control"><span>Channels</span><select value={settings.channels} onChange={(e) => setSettings({ ...settings, channels: +e.target.value })}><option value="1">Mono</option><option value="2">Stereo</option></select></label>
-              <label className="select-control"><span>Output</span><select value={settings.height} onChange={(e) => setSettings({ ...settings, height: +e.target.value })}>{[1080, 720, 480, 360, 240].map(v => <option key={v} value={v}>{v}p</option>)}</select></label>
+              <label className="select-control"><span>Output</span><select value={settings.height} onChange={(e) => setSettings({ ...settings, height: +e.target.value })}><option value="0">Original</option>{[1080, 720, 480, 360, 240].map(v => <option key={v} value={v}>{v}p</option>)}</select></label>
             </div>
 
             <div className="job-area">
               {error && <div className="error-box">{error}</div>}
-              {job && (
+              {status !== 'idle' && (
                 <div className="progress-card">
-                  <div className="progress-line"><span>{job.status}</span><strong>{Math.round(progress)}%</strong></div>
+                  <div className="progress-line"><span>{status}</span><strong>{Math.round(progress)}%</strong></div>
                   <div className="progress-track"><div style={{ width: `${progress}%` }} /></div>
+                  {status === 'completed' && outputPath && <div className="output-path">saved · {outputPath}</div>}
                 </div>
               )}
 
-              {job?.status === 'completed' ? (
-                <a className="process-button done" href={`/api/jobs/${job.id}/download`}><ArrowDownToLine size={18} /> Download result <ChevronRight size={17} /></a>
-              ) : busy ? (
-                <button className="process-button cancel" onClick={cancel}><Square size={16} fill="currentColor" /> Stop processing</button>
+              {busy ? (
+                <button className="process-button cancel" onClick={() => void cancel()}><Square size={16} fill="currentColor" /> Stop processing</button>
               ) : (
-                <button className="process-button" disabled={!file} onClick={start}>Process video <ChevronRight size={17} /></button>
+                <button className={`process-button ${status === 'completed' ? 'done' : ''}`} disabled={!inputPath || !info} onClick={() => void start()}>
+                  {status === 'completed' ? 'Process again' : 'Process video'} <ChevronRight size={17} />
+                </button>
               )}
-              <p className="privacy-note">Files stay on the machine running the Rust backend.</p>
+              <p className="privacy-note">100% local · native Rust core · bundled FFmpeg</p>
             </div>
           </aside>
         </section>
@@ -214,7 +289,12 @@ function App() {
 }
 
 function Control({ label, value, note, children }: { label: string; value: string; note?: string; children: ReactNode }) {
-  return <div className="control"><div className="control-line"><span>{label}</span><div><strong>{value}</strong>{note && <small>{note}</small>}</div></div>{children}</div>
+  return (
+    <div className="control">
+      <div className="control-line"><span>{label}</span><div><strong>{value}</strong>{note && <small>{note}</small>}</div></div>
+      {children}
+    </div>
+  )
 }
 
 export default App
