@@ -3,7 +3,8 @@ name: Windows Release
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -52,7 +53,7 @@ jobs:
           tagName: v__VERSION__
           releaseName: 'VideoDowngrade v__VERSION__'
           releaseBody: |
-            First native Windows desktop build of VideoDowngrade.
+            Native Windows desktop build of VideoDowngrade.
 
             - React + Tauri 2 interface
             - native Rust processing core
