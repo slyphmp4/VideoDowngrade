@@ -21,3 +21,13 @@ export type VideoInfo = {
   file_size: number
   filename: string
 }
+
+// Kept temporarily so the legacy web API module still type-checks during the desktop migration.
+export type Job = {
+  id: string
+  filename: string
+  status: 'queued' | 'probing' | 'processing' | 'completed' | 'failed' | 'cancelled'
+  progress: number
+  output_filename: string | null
+  error: string | null
+}
