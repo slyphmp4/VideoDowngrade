@@ -2,99 +2,85 @@
 
 ## Core idea
 
-VideoDowngrade should feel like a restrained Swiss editorial tool rather than a generic converter or SaaS dashboard. The interface stays technical and compact, but the visual language is based on grid discipline, typography, contrast and printed matter rather than glow, gradients and rounded cards.
+VideoDowngrade should no longer look like a generic dark SaaS tool or a quick vibe-coded converter.
+It should feel like a restrained Swiss-style desktop utility: typographic, modular, grid-based, monochrome, and precise.
 
-## Layout rule
+The current goal is not to redesign the layout. The goal is to preserve the existing structure and replace the visual language.
 
-The current application layout is intentionally preserved:
+## Non-negotiable rules
 
-- left navigation rail stays in place
-- preview remains the dominant block
-- Character presets stay directly below the preview
-- manual controls remain in the right column
-- existing spacing and responsive breakpoints stay close to the previous application
+1. Keep the current UI structure and element positions.
+2. Use only black, white, and grayscale values.
+3. No green, red, blue, or any accent hues.
+4. No glassmorphism, neon glow, or decorative gradients.
+5. The entire UI must feel tied to one grid system.
+6. Motion should stay present, but remain subtle and functional.
 
-The redesign changes the visual system, not the information architecture.
+## Visual system
 
-## Palette
+### Palette
 
-- shell/background: `#0B0B0B`
-- editorial paper: `#EFEEE9`
-- secondary paper: `#E5E4DF`
-- ink: `#0B0B0B`
-- primary light type: `#F7F6F2`
-- muted type: `#77756F`
-- Swiss grid/state accent: `#EF564D`
+- main background: near-black
+- main surfaces: white / warm-light grayscale
+- main text on light panels: black
+- main text on dark areas: white
+- secondary information: neutral gray only
+- borders: thin black or neutral gray lines
 
-The red accent is intentionally rare. It is used for grid references, state, progress and small markers rather than large decorative surfaces.
+### Grid
 
-## Typography
+- use a visible but subtle modular grid language across the interface
+- spacing should snap to a consistent rhythm
+- panels should feel like they belong to the same editorial system
+- internal panel content should align to the same logic as the page itself
 
-Primary stack:
+### Typography
 
-`Arial, Helvetica, SF Pro Display, Segoe UI, sans-serif`
+- grotesk / neo-grotesk feeling
+- strong hierarchy through scale and weight, not color
+- uppercase micro labels
+- large confident headlines
+- compact technical metadata
 
-Rules:
+### Components
 
-1. Use strong grotesk weights for hierarchy.
-2. Use compact uppercase metadata with modest tracking.
-3. Prefer alignment and scale over decorative effects.
-4. Keep technical values small and precise.
-5. Avoid overly soft, friendly or rounded typography.
+- very small radii or nearly square corners
+- custom sliders and dropdowns should remain custom, not browser-native
+- controls should feel like designed instruments, not form widgets
+- primary and secondary actions should rely on inversion, rules, and spacing rather than accent color
 
-## Shape language
+## Motion principles
 
-- radii: generally `0–3 px`
-- borders: strict `1 px` rules
-- no glassmorphism
-- no neon glow
-- no soft card shadows
-- rectangular thumbs and controls
-- black/white inversion is preferred for selected states
+Animation is still required, but it must feel controlled.
 
-## Grid
+Use motion for:
+- hover clarification
+- dropdown opening
+- toast appearance
+- progress feedback
+- subtle surface reveal on load
+- slider thumb movement
 
-The application shell may expose subtle red vertical construction lines. These are a structural reference, not decoration. UI elements themselves should align to the existing application grid and retain their current positions.
+Avoid:
+- bouncy motion
+- flashy easing
+- oversized scale effects
+- attention-seeking decoration
 
-## Components
+## Current direction summary
 
-### Preview
+The interface should read like:
+- black workspace
+- white editorial panels
+- one consistent grid
+- monochrome only
+- subtle but alive motion
+- precise typography-first hierarchy
 
-The preview remains dark and visually dominant. Its supporting grid can use subtle red construction lines.
+## Future additions
 
-### Presets
-
-Presets behave like small editorial specimens. Unselected cards are paper with black rules; selected cards invert to black with light type.
-
-### Manual controls
-
-The right panel is treated like a compact printed control sheet: off-white surface, black rules, red state markers, minimal rounding.
-
-### Sliders
-
-Thin black track, black fill and a small square red handle. No browser-native appearance.
-
-### Dropdowns
-
-Outlined editorial fields that invert when opened. Menus use black surfaces with strict separators.
-
-### Process actions
-
-Primary action is a black editorial bar. Completion state returns to paper/ink. Cancel remains dark with a red stop marker.
-
-### Notifications
-
-Notifications resemble a small printed label: off-white rectangle, black rule, narrow red registration bar.
-
-## Motion
-
-Motion stays short and functional. No bounce, floating cards or decorative spring animation. Transitions should feel closer to changing a printed state than to a mobile consumer app.
-
-## Future evolution
-
-- custom video-player chrome in the same Swiss system
-- before/after frame comparison
-- typographic waveform / histogram views
-- optional visible construction-grid mode
-- custom VideoDowngrade wordmark
-- alternate pure black-and-white mode
+- custom video player controls in the same language
+- frame comparison mode
+- before/after scrubber
+- timeline markers
+- processing history as a grid-based archive view
