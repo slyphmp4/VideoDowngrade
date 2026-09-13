@@ -1,4 +1,4 @@
-import { ArrowUpRight, Check, RotateCcw, Trash2 } from 'lucide-react'
+import { Check, RotateCcw, Trash2 } from 'lucide-react'
 import { presets } from './presets'
 import type { AppPreferences, HistoryEntry, PresetKey, Settings } from './types'
 
@@ -18,12 +18,10 @@ function formatDate(timestamp: number) {
 
 export function HistoryView({
   entries,
-  onOpen,
   onUseSettings,
   onClear,
 }: {
   entries: HistoryEntry[]
-  onOpen: (entry: HistoryEntry) => void
   onUseSettings: (settings: Settings) => void
   onClear: () => void
 }) {
@@ -66,7 +64,6 @@ export function HistoryView({
                 <time>{formatDate(entry.created_at)}</time>
                 <div className="history-actions">
                   <button type="button" onClick={() => onUseSettings(entry.settings)} title="Reuse settings"><RotateCcw size={13} /> Use settings</button>
-                  <button type="button" onClick={() => onOpen(entry)} title="Open processed video"><ArrowUpRight size={13} /> Open result</button>
                 </div>
               </article>
             ))}
